@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -24,7 +25,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
 
 const registerSchema = z
   .object({
@@ -61,15 +61,18 @@ const SignUpForm = () => {
   });
 
   async function onSubmit(values: z.infer<typeof registerSchema>) {
-    await authClient.signUp.email({
-      email: values.email,
-      password: values.password,
-      name: values.name,
-    },{
-      onSuccess: () => {
-        router.push("/dashboard");
+    await authClient.signUp.email(
+      {
+        email: values.email,
+        password: values.password,
+        name: values.name,
       },
-    });
+      {
+        onSuccess: () => {
+          router.push("/dashboard");
+        },
+      },
+    );
   }
 
   return (
