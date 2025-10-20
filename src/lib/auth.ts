@@ -5,11 +5,22 @@ import { db } from "@/db";
 import * as schema from "@/db/schema";
 
 export const auth = betterAuth({
+  // Configuração do banco de dados com Drizzle ORM
   database: drizzleAdapter(db, {
     provider: "pg",
     usePlural: true,
-    schema,
+    schema, // <-- Passamos o schema completo
   }),
+
+  // Provedores de login social
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+    },
+  },
+
+  // Modelos usados pelo sistema de autenticação
   user: {
     modelName: "usersTable",
   },
@@ -20,8 +31,10 @@ export const auth = betterAuth({
     modelName: "accountsTable",
   },
   verification: {
-    modelName: "verificationTable",
+    modelName: "verificationsTable", // <-- corrigido para plural
   },
+
+  // Autenticação via email e senha
   emailAndPassword: {
     enabled: true,
   },
