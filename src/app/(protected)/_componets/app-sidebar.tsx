@@ -1,5 +1,6 @@
 "use client";
 
+import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
 import {
   CalendarDays,
   LayoutDashboard,
@@ -9,9 +10,8 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // ✅ Corrigido (antes estava "next/router")
+import { usePathname, useRouter } from "next/navigation"; // ✅ Corrigido (antes estava "next/router")
 
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +31,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
-import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
 
 // Menu principal
 const items = [
@@ -60,8 +59,7 @@ const items = [
 export function AppSidebar() {
   const router = useRouter();
   const session = authClient.useSession();
-
-
+  const pathname = usePathname();
 
   const handleSignOut = async () => {
     await authClient.signOut({
@@ -95,7 +93,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild isActive={pathname === item.url}>
                     <Link href={item.url}>
                       <item.icon className="mr-2 h-4 w-4" />
                       <span>{item.title}</span>
@@ -118,10 +116,12 @@ export function AppSidebar() {
                     <AvatarFallback>F</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="text-sm">{session.data?.user.clinicId.name}</p>
+                    <p className="text-sm">
+                      {session.data?.user.clinicId.name}
+                    </p>
                     <p className="text-muted-foreground text-sm">
                       {session.data?.user.email}
-                      </p>
+                    </p>
                   </div>
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
