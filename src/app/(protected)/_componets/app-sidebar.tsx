@@ -31,6 +31,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
+import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
 
 // Menu principal
 const items = [
@@ -58,6 +59,9 @@ const items = [
 
 export function AppSidebar() {
   const router = useRouter();
+  const session = authClient.useSession();
+
+
 
   const handleSignOut = async () => {
     await authClient.signOut({
@@ -109,7 +113,17 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline">Clínica</Button>
+                <SidebarMenuButton size="lg">
+                  <Avatar>
+                    <AvatarFallback>F</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm">{session.data?.user.clinicId.name}</p>
+                    <p className="text-muted-foreground text-sm">
+                      {session.data?.user.email}
+                      </p>
+                  </div>
+                </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40">
                 <DropdownMenuItem onClick={handleSignOut}>
