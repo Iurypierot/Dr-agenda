@@ -1,10 +1,10 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { customSession } from "better-auth/plugins";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import * as schema from "@/db/schema";
-import { eq } from "drizzle-orm";
 import { usersToClinicsTable } from "@/db/schema";
 
 export const auth = betterAuth({
@@ -28,22 +28,23 @@ export const auth = betterAuth({
         where: eq(usersToClinicsTable.userId, user.id),
         with: {
           clinic: true,
-        }
+        },
       });
-      const clinic = clinics[0];
+      const clinic = clinics?.[0];
       return {
         user: {
           ...user,
-          clinicId: {
+          clinicId: clinic?.clinicId  
+          ? {
             id: clinic?.clinicId,
-            name: clinic.clinic.name,
-          },
+            name: clinic?.clinic?.name,
+          }
+          : undefined,
         },
+        session,
       };
     }),
   ],
-
-  // Modelos usados pelo sistema de autenticação
   user: {
     modelName: "usersTable",
   },
@@ -54,7 +55,7 @@ export const auth = betterAuth({
     modelName: "accountsTable",
   },
   verification: {
-    modelName: "verificationsTable", // <-- corrigido para plural
+    modelName: "verificationsTable", 
   },
 
   // Autenticação via email e senha
