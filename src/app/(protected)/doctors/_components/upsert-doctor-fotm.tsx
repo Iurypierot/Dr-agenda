@@ -1,10 +1,12 @@
-"use client";
-
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAction } from "next-safe-action/hooks";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { NumericFormat } from "react-number-format";
+import { toast } from "sonner";
 import { z } from "zod";
 
+import { upsertDoctor } from "@/actions/upsert-doctor";
 import { Button } from "@/components/ui/button";
 import {
   DialogContent,
@@ -31,69 +33,116 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { doctorsTable } from "@/db/schema";
 
 import { medicalSpecialties } from "../_constants";
 
-// ✅ Schema de validação (mantendo estrutura, com coerção e comparação corrigida)
 const formSchema = z
   .object({
-    name: z.string().trim().min(1, { message: "O nome é obrigatório" }),
+    name: z.string().trim().min(1, {
+      message: "Nome é obrigatório.",
+    }),
     specialty: z.string().trim().min(1, {
-      message: "A especialidade é obrigatória",
+      message: "Especialidade é obrigatória.",
     }),
-    appointmentPrice: z.coerce.number().min(1, {
-      message: "O preço do atendimento é obrigatório",
+    appointmentPrice: z.number().min(1, {
+      message: "Preço da consulta é obrigatório.",
     }),
-    availableFromWeekday: z.string().min(1, { message: "Campo obrigatório" }),
-    availableToWeekday: z.string().min(1, { message: "Campo obrigatório" }),
+    availableFromWeekDay: z.string(),
+    availableToWeekDay: z.string(),
     availableFromTime: z.string().min(1, {
-      message: "O horário de início é obrigatório",
+      message: "Hora de início é obrigatória.",
     }),
     availableToTime: z.string().min(1, {
-      message: "O horário de término é obrigatório",
+      message: "Hora de término é obrigatória.",
     }),
   })
   .refine(
-    (data) => data.availableFromTime < data.availableToTime,
+    (data) => {
+      return data.availableFromTime < data.availableToTime;
+    },
     {
       message:
-        "O horário de início não pode ser maior que o horário de término",
+        "O horário de início não pode ser anterior ao horário de término.",
       path: ["availableToTime"],
-    }
+    },
   );
 
-type FormValues = z.infer<typeof formSchema>;
+interface UpsertDoctorFormProps {
+  isOpen: boolean;
+  doctor?: typeof doctorsTable.$inferSelect;
+  onSuccess?: () => void;
+}
 
-const UpsertDoctorForm = () => {
-  const form = useForm<FormValues>({
+const UpsertDoctorForm = ({
+  doctor,
+  onSuccess,
+  isOpen,
+}: UpsertDoctorFormProps) => {
+  const form = useForm<z.infer<typeof formSchema>>({
+    shouldUnregister: true,
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
-      specialty: "",
-      appointmentPrice: 0,
-      availableFromWeekday: "1",
-      availableToWeekday: "5",
-      availableFromTime: "",
-      availableToTime: "",
+      name: doctor?.name ?? "",
+      specialty: doctor?.specialty ?? "",
+      appointmentPrice: doctor?.appointmentPriceInCents
+        ? doctor.appointmentPriceInCents / 100
+        : 0,
+      availableFromWeekDay: doctor?.availableFromWeekDay?.toString() ?? "1",
+      availableToWeekDay: doctor?.availableToWeekDay?.toString() ?? "5",
+      availableFromTime: doctor?.availableFromTime ?? "",
+      availableToTime: doctor?.availableToTime ?? "",
     },
   });
 
-  const onSubmit = (value: FormValues) => {
-    console.log("🩺 Dados do médico:", value);
+  useEffect(() => {
+    if (isOpen) {
+      form.reset({
+        name: doctor?.name ?? "",
+        specialty: doctor?.specialty ?? "",
+        appointmentPrice: doctor?.appointmentPriceInCents
+          ? doctor.appointmentPriceInCents / 100
+          : 0,
+        availableFromWeekDay: doctor?.availableFromWeekDay?.toString() ?? "1",
+        availableToWeekDay: doctor?.availableToWeekDay?.toString() ?? "5",
+        availableFromTime: doctor?.availableFromTime ?? "",
+        availableToTime: doctor?.availableToTime ?? "",
+      });
+    }
+  }, [isOpen, form, doctor]);
+
+  const upsertDoctorAction = useAction(upsertDoctor, {
+    onSuccess: () => {
+      toast.success("Médico adicionado com sucesso.");
+      onSuccess?.();
+    },
+    onError: () => {
+      toast.error("Erro ao adicionar médico.");
+    },
+  });
+
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    upsertDoctorAction.execute({
+      ...values,
+      id: doctor?.id,
+      availableFromWeekDay: parseInt(values.availableFromWeekDay),
+      availableToWeekDay: parseInt(values.availableToWeekDay),
+      appointmentPriceInCents: values.appointmentPrice * 100,
+    });
   };
 
   return (
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>Adicionar médico</DialogTitle>
+        <DialogTitle>{doctor ? doctor.name : "Adicionar médico"}</DialogTitle>
         <DialogDescription>
-          Adicione um novo médico à clínica preenchendo os campos abaixo
+          {doctor
+            ? "Edite as informações desse médico."
+            : "Adicione um novo médico."}
         </DialogDescription>
       </DialogHeader>
-
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          {/* Nome */}
           <FormField
             control={form.control}
             name="name"
@@ -101,24 +150,25 @@ const UpsertDoctorForm = () => {
               <FormItem>
                 <FormLabel>Nome</FormLabel>
                 <FormControl>
-                  <Input placeholder="Dr. João da Silva" {...field} />
+                  <Input {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-
-          {/* Especialidade */}
           <FormField
             control={form.control}
             name="specialty"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Especialidade</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
                   <FormControl>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecione a especialidade" />
+                      <SelectValue placeholder="Selecione uma especialidade" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -133,55 +183,52 @@ const UpsertDoctorForm = () => {
               </FormItem>
             )}
           />
-
-          {/* Preço da consulta */}
           <FormField
             control={form.control}
             name="appointmentPrice"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Preço da consulta</FormLabel>
-                <FormControl>
-                  <NumericFormat
-                    value={field.value}
-                    onValueChange={(values) => {
-                      field.onChange(values.floatValue ?? 0);
-                    }}
-                    decimalScale={2}
-                    fixedDecimalScale
-                    decimalSeparator=","
-                    thousandSeparator="."
-                    allowNegative={false}
-                    allowLeadingZeros={false}
-                    prefix="R$ "
-                    customInput={Input}
-                  />
-                </FormControl>
+                <NumericFormat
+                  value={field.value}
+                  onValueChange={(value) => {
+                    field.onChange(value.floatValue);
+                  }}
+                  decimalScale={2}
+                  fixedDecimalScale
+                  decimalSeparator=","
+                  allowNegative={false}
+                  allowLeadingZeros={false}
+                  thousandSeparator="."
+                  customInput={Input}
+                  prefix="R$"
+                />
                 <FormMessage />
               </FormItem>
             )}
           />
-
-          {/* Dia inicial */}
           <FormField
             control={form.control}
-            name="availableFromWeekday"
+            name="availableFromWeekDay"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Dia inicial de disponibilidade</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
                   <FormControl>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecione o dia" />
+                      <SelectValue placeholder="Selecione um dia" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="0">Domingo</SelectItem>
-                    <SelectItem value="1">Segunda-feira</SelectItem>
-                    <SelectItem value="2">Terça-feira</SelectItem>
-                    <SelectItem value="3">Quarta-feira</SelectItem>
-                    <SelectItem value="4">Quinta-feira</SelectItem>
-                    <SelectItem value="5">Sexta-feira</SelectItem>
+                    <SelectItem value="1">Segunda</SelectItem>
+                    <SelectItem value="2">Terça</SelectItem>
+                    <SelectItem value="3">Quarta</SelectItem>
+                    <SelectItem value="4">Quinta</SelectItem>
+                    <SelectItem value="5">Sexta</SelectItem>
                     <SelectItem value="6">Sábado</SelectItem>
                   </SelectContent>
                 </Select>
@@ -189,27 +236,28 @@ const UpsertDoctorForm = () => {
               </FormItem>
             )}
           />
-
-          {/* Dia final */}
           <FormField
             control={form.control}
-            name="availableToWeekday"
+            name="availableToWeekDay"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Dia final de disponibilidade</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value?.toString()}
+                >
                   <FormControl>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecione o dia" />
+                      <SelectValue placeholder="Selecione um dia" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="0">Domingo</SelectItem>
-                    <SelectItem value="1">Segunda-feira</SelectItem>
-                    <SelectItem value="2">Terça-feira</SelectItem>
-                    <SelectItem value="3">Quarta-feira</SelectItem>
-                    <SelectItem value="4">Quinta-feira</SelectItem>
-                    <SelectItem value="5">Sexta-feira</SelectItem>
+                    <SelectItem value="1">Segunda</SelectItem>
+                    <SelectItem value="2">Terça</SelectItem>
+                    <SelectItem value="3">Quarta</SelectItem>
+                    <SelectItem value="4">Quinta</SelectItem>
+                    <SelectItem value="5">Sexta</SelectItem>
                     <SelectItem value="6">Sábado</SelectItem>
                   </SelectContent>
                 </Select>
@@ -217,22 +265,22 @@ const UpsertDoctorForm = () => {
               </FormItem>
             )}
           />
-
-          {/* Horário inicial */}
           <FormField
             control={form.control}
             name="availableFromTime"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Horário inicial de disponibilidade</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
                   <FormControl>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecione um horário" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {/* Mantida a duplicação completa dos horários */}
                     <SelectGroup>
                       <SelectLabel>Manhã</SelectLabel>
                       <SelectItem value="05:00:00">05:00</SelectItem>
@@ -286,22 +334,22 @@ const UpsertDoctorForm = () => {
               </FormItem>
             )}
           />
-
-          {/* Horário final (mantida duplicação completa) */}
           <FormField
             control={form.control}
             name="availableToTime"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Horário final de disponibilidade</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
                   <FormControl>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecione um horário" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {/* Mantida duplicação completa */}
                     <SelectGroup>
                       <SelectLabel>Manhã</SelectLabel>
                       <SelectItem value="05:00:00">05:00</SelectItem>
@@ -355,10 +403,13 @@ const UpsertDoctorForm = () => {
               </FormItem>
             )}
           />
-
           <DialogFooter>
-            <Button type="submit" className="w-full">
-              Adicionar médico
+            <Button type="submit" disabled={upsertDoctorAction.isPending}>
+              {upsertDoctorAction.isPending
+                ? "Salvando..."
+                : doctor
+                  ? "Salvar"
+                  : "Adicionar"}
             </Button>
           </DialogFooter>
         </form>

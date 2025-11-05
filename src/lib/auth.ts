@@ -4,47 +4,66 @@ import { customSession } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import * as schema from "@/db/schema";
-import { usersToClinicsTable } from "@/db/schema";
+import {
+  accountsTable,
+  clinicsTable,
+  sessionsTable,
+  usersTable,
+  usersToClinicsTable,
+  verificationsTable,
+} from "@/db/schema";
 
 export const auth = betterAuth({
-  // Configuração do banco de dados com Drizzle ORM
   database: drizzleAdapter(db, {
     provider: "pg",
-    usePlural: true,
-    schema, // <-- Passamos o schema completo
+    schema: {
+      usersTable,
+      sessionsTable,
+      accountsTable,
+      verificationsTable,
+      usersToClinicsTable,
+      clinicsTable,
+    },
   }),
 
-  // Provedores de login social
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
+
   plugins: [
     customSession(async ({ user, session }) => {
-      const clinics = await db.query.usersToClinicsTable.findMany({
-        where: eq(usersToClinicsTable.userId, user.id),
-        with: {
-          clinic: true,
-        },
-      });
+      const clinics = await db
+        .select({
+          clinicId: usersToClinicsTable.clinicId,
+          clinicName: clinicsTable.name,
+        })
+        .from(usersToClinicsTable)
+        .leftJoin(
+          clinicsTable,
+          eq(clinicsTable.id, usersToClinicsTable.clinicId),
+        )
+        .where(eq(usersToClinicsTable.userId, user.id));
+
       const clinic = clinics?.[0];
+
       return {
         user: {
           ...user,
-          clinicId: clinic?.clinicId  
-          ? {
-            id: clinic?.clinicId,
-            name: clinic?.clinic?.name,
-          }
-          : undefined,
+          clinicId: clinic?.clinicId
+            ? {
+                id: clinic.clinicId,
+                name: clinic.clinicName,
+              }
+            : undefined,
         },
         session,
       };
     }),
   ],
+
   user: {
     modelName: "usersTable",
   },
@@ -55,10 +74,9 @@ export const auth = betterAuth({
     modelName: "accountsTable",
   },
   verification: {
-    modelName: "verificationsTable", 
+    modelName: "verificationsTable",
   },
 
-  // Autenticação via email e senha
   emailAndPassword: {
     enabled: true,
   },
