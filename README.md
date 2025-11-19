@@ -57,6 +57,6 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 -[x] Página de médicos
 -[x] Proteger página de médicos (autenticação)
 -[x] Criação de médicos & NextSafeAction
--[] Listagem de médicos
+-[x] Listagem de médicos
 -[] Atualização de médicos
 -[] Deleção de médicos

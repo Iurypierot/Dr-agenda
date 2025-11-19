@@ -3,6 +3,7 @@
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 import { CalendarIcon, ClockIcon, DollarSignIcon } from "lucide-react";
+import { useState } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,8 @@ interface DoctorCardProps {
 }
 
 const DoctorCard = ({ doctor }: DoctorCardProps) => {
+  const [isUpsertDoctorDialogOpen, setIsUpserDoctorDialogOpen] =
+    useState(false);
   const doctorInitials = doctor.name
     .split(" ")
     .map((name) => name[0])
@@ -85,12 +88,23 @@ const DoctorCard = ({ doctor }: DoctorCardProps) => {
       <Separator />
 
       <CardFooter>
-        <Dialog>
+        <Dialog
+          open={isUpsertDoctorDialogOpen}
+          onOpenChange={setIsUpserDoctorDialogOpen}
+        >
           <DialogTrigger asChild>
             <Button className="w-full">Ver detalhes</Button>
           </DialogTrigger>
 
-          <UpsertDoctorForm isOpen={false} doctor={doctor} />
+          <UpsertDoctorForm
+            doctor={{
+              ...doctor,
+              availableToTime: availability.to.format("HH:mm:ss"),
+              availableFromTime: availability.from.format("HH:mm:ss"),
+            }}
+            onSuccess={() => setIsUpserDoctorDialogOpen(false)}
+            isOpen={false}
+          />
         </Dialog>
       </CardFooter>
     </Card>
