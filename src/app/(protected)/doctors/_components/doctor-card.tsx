@@ -2,9 +2,21 @@
 
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
-import { CalendarIcon, ClockIcon, DollarSignIcon } from "lucide-react";
+import { CalendarIcon, ClockIcon, DollarSignIcon, Trash } from "lucide-react";
 import { useState } from "react";
 
+import { deleteDoctor } from "@/actions/delete-doctor/index";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,13 +43,13 @@ interface DoctorCardProps {
 const DoctorCard = ({ doctor }: DoctorCardProps) => {
   const [isUpsertDoctorDialogOpen, setIsUpserDoctorDialogOpen] =
     useState(false);
+
   const doctorInitials = doctor.name
     .split(" ")
     .map((name) => name[0])
     .join("");
 
   const availability = getAvailability(doctor);
-  const isAvailable = dayjs().isBetween(availability.from, availability.to);
 
   return (
     <Card>
@@ -57,37 +69,27 @@ const DoctorCard = ({ doctor }: DoctorCardProps) => {
       <Separator />
 
       <CardContent className="flex flex-col gap-2">
-        {/* Dias da semana */}
         <Badge variant="outline">
           <CalendarIcon className="mr-1" />
           {availability.from.format("dddd")} a {availability.to.format("dddd")}
         </Badge>
 
-        {/* Horários */}
         <Badge variant="outline">
           <ClockIcon className="mr-1" />
           {availability.from.format("HH:mm")} às{" "}
           {availability.to.format("HH:mm")}
         </Badge>
 
-        {/* Preço */}
         <Badge variant="outline">
           <DollarSignIcon className="mr-1" />
           {formatCurrency(doctor.appointmentPriceInCents)}
-        </Badge>
-
-        {/* Status */}
-        <Badge
-          variant={isAvailable ? "default" : "destructive"}
-          className="mt-1"
-        >
-          {isAvailable ? "Disponível agora" : "Fora do horário"}
         </Badge>
       </CardContent>
 
       <Separator />
 
-      <CardFooter>
+      <CardFooter className="flex flex-col gap-2">
+        {/* Ver detalhes */}
         <Dialog
           open={isUpsertDoctorDialogOpen}
           onOpenChange={setIsUpserDoctorDialogOpen}
@@ -106,6 +108,35 @@ const DoctorCard = ({ doctor }: DoctorCardProps) => {
             isOpen={false}
           />
         </Dialog>
+
+        {/* Excluir */}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" className="w-full">
+              <Trash className="mr-2 h-4 w-4" /> Excluir
+            </Button>
+          </AlertDialogTrigger>
+
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação não pode ser desfeita. O médico será removido
+                permanentemente do sistema.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+
+              <AlertDialogAction
+                onClick={() => deleteDoctor({ id: doctor.id })}
+              >
+                Confirmar exclusão
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardFooter>
     </Card>
   );
