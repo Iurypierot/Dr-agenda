@@ -150,7 +150,7 @@ const UpsertDoctorForm = ({
               <FormItem>
                 <FormLabel>Nome</FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <Input {...field} placeholder="Digite o nome do médico" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -202,6 +202,7 @@ const UpsertDoctorForm = ({
                   thousandSeparator="."
                   customInput={Input}
                   prefix="R$"
+                  placeholder="0,00"
                 />
                 <FormMessage />
               </FormItem>
