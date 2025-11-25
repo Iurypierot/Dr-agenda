@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Trash } from "lucide-react";
+import { MoreVertical, Pencil, Trash } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -15,10 +15,17 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -49,12 +56,16 @@ const formatPhoneNumber = (phone: string) => {
 const PatientsTable = ({ patients }: PatientsTableProps) => {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [patientToDelete, setPatientToDelete] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const selectedPatient = patients.find((p) => p.id === selectedPatientId);
 
   const deletePatientAction = useAction(deletePatient, {
     onSuccess: () => {
       toast.success("Paciente excluído com sucesso.");
+      setIsDeleteDialogOpen(false);
+      setPatientToDelete(null);
     },
     onError: () => {
       toast.error("Erro ao excluir paciente.");
@@ -95,52 +106,36 @@ const PatientsTable = ({ patients }: PatientsTableProps) => {
                     {patient.sex === "male" ? "Masculino" : "Feminino"}
                   </TableCell>
                   <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => {
-                          setSelectedPatientId(patient.id);
-                          setIsDialogOpen(true);
-                        }}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Esta ação não pode ser desfeita. O paciente será
-                              removido permanentemente do sistema.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() =>
-                                deletePatientAction.execute({ id: patient.id })
-                              }
-                              disabled={deletePatientAction.isPending}
-                            >
-                              {deletePatientAction.isPending
-                                ? "Excluindo..."
-                                : "Confirmar exclusão"}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>{patient.name}</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedPatientId(patient.id);
+                            setIsDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => {
+                            setPatientToDelete(patient.id);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash className="mr-2 h-4 w-4" />
+                          Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
@@ -161,6 +156,40 @@ const PatientsTable = ({ patients }: PatientsTableProps) => {
           />
         </Dialog>
       )}
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O paciente será removido
+              permanentemente do sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setPatientToDelete(null);
+              }}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (patientToDelete) {
+                  deletePatientAction.execute({ id: patientToDelete });
+                }
+              }}
+              disabled={deletePatientAction.isPending}
+            >
+              {deletePatientAction.isPending
+                ? "Excluindo..."
+                : "Confirmar exclusão"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
