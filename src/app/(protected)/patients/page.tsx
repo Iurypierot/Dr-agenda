@@ -16,7 +16,7 @@ import { patientsTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 import AddPatientButton from "./_components/add-patient-button";
-import PatientCard from "./_components/patient-card";
+import PatientsTable from "./_components/patients-table";
 
 const PatientsPage = async () => {
   const session = await auth.api.getSession({
@@ -33,6 +33,11 @@ const PatientsPage = async () => {
     where: eq(patientsTable.clinicId, session.user.clinicId.id),
   });
 
+  // Ordenar por nome em ordem alfabética
+  const sortedPatients = patients.sort((a, b) => {
+    return a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" });
+  });
+
   return (
     <PageContainer>
       <PageHeader>
@@ -45,17 +50,7 @@ const PatientsPage = async () => {
         </PageActions>
       </PageHeader>
       <PageContent>
-        <div className="grid grid-cols-3 gap-5">
-          {patients.length === 0 ? (
-            <p className="text-muted-foreground col-span-3">
-              Nenhum paciente cadastrado ainda.
-            </p>
-          ) : (
-            patients.map((patient) => (
-              <PatientCard key={patient.id} patient={patient} />
-            ))
-          )}
-        </div>
+        <PatientsTable patients={sortedPatients} />
       </PageContent>
     </PageContainer>
   );
