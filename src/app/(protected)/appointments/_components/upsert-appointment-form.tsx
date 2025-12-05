@@ -15,7 +15,7 @@ import { NumericFormat } from "react-number-format";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { upsertAppointment } from "@/actions/upsert-appointment";
+import { createAppointment } from "@/actions/upsert-appointment";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -204,7 +204,7 @@ const UpsertAppointmentForm = ({
     }
   }, [isOpen, form]);
 
-  const upsertAppointmentAction = useAction(upsertAppointment, {
+  const createAppointmentAction = useAction(createAppointment, {
     onSuccess: () => {
       toast.success("Agendamento criado com sucesso.");
       onSuccess?.();
@@ -215,7 +215,7 @@ const UpsertAppointmentForm = ({
   });
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    upsertAppointmentAction.execute({
+    createAppointmentAction.execute({
       ...values,
       appointmentPriceInCents: Math.round(values.appointmentPrice * 100),
     });
@@ -424,8 +424,8 @@ const UpsertAppointmentForm = ({
             )}
           />
           <DialogFooter>
-            <Button type="submit" disabled={upsertAppointmentAction.isPending}>
-              {upsertAppointmentAction.isPending
+            <Button type="submit" disabled={createAppointmentAction.isPending}>
+              {createAppointmentAction.isPending
                 ? "Salvando..."
                 : "Criar agendamento"}
             </Button>

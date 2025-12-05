@@ -10,12 +10,12 @@ import { appointmentsTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { actionClient } from "@/lib/next-safe-action";
 
-import { upsertAppointmentSchema } from "./schema";
+import { createAppointmentSchema } from "./schema";
 
 dayjs.extend(utc);
 
-export const upsertAppointment = actionClient
-  .schema(upsertAppointmentSchema)
+export const createAppointment = actionClient
+  .schema(createAppointmentSchema)
   .action(async ({ parsedInput }) => {
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -39,23 +39,12 @@ export const upsertAppointment = actionClient
         .set("second", 0);
     }
 
-    await db
-      .insert(appointmentsTable)
-      .values({
-        id: parsedInput.id,
-        clinicId: session.user.clinicId.id,
-        patientId: parsedInput.patientId,
-        doctorId: parsedInput.doctorId,
-        date: appointmentDate.toDate(),
-      })
-      .onConflictDoUpdate({
-        target: appointmentsTable.id,
-        set: {
-          patientId: parsedInput.patientId,
-          doctorId: parsedInput.doctorId,
-          date: appointmentDate.toDate(),
-        },
-      });
+    await db.insert(appointmentsTable).values({
+      clinicId: session.user.clinicId.id,
+      patientId: parsedInput.patientId,
+      doctorId: parsedInput.doctorId,
+      date: appointmentDate.toDate(),
+    });
     revalidatePath("/appointments");
   });
 

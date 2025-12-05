@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -12,10 +12,11 @@ import {
   PageTitle,
 } from "@/components/ui/page-container";
 import { db } from "@/db";
-import { doctorsTable, patientsTable } from "@/db/schema";
+import { appointmentsTable, doctorsTable, patientsTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 import AddAppointmentButton from "./_components/add-appointment-button";
+import AppointmentsTable from "./_components/appointments-table";
 
 const AppointmentsPage = async () => {
   const session = await auth.api.getSession({
@@ -28,12 +29,20 @@ const AppointmentsPage = async () => {
     redirect("/clinic-form");
   }
 
-  const [patients, doctors] = await Promise.all([
+  const [patients, doctors, appointments] = await Promise.all([
     db.query.patientsTable.findMany({
       where: eq(patientsTable.clinicId, session.user.clinicId.id),
     }),
     db.query.doctorsTable.findMany({
       where: eq(doctorsTable.clinicId, session.user.clinicId.id),
+    }),
+    db.query.appointmentsTable.findMany({
+      where: eq(appointmentsTable.clinicId, session.user.clinicId.id),
+      with: {
+        patient: true,
+        doctor: true,
+      },
+      orderBy: (appointments, { desc: descFn }) => [descFn(appointments.date)],
     }),
   ]);
 
@@ -60,8 +69,8 @@ const AppointmentsPage = async () => {
           />
         </PageActions>
       </PageHeader>
-      <PageContent children={undefined}>
-        {/* Conteúdo da lista de agendamentos será adicionado aqui */}
+      <PageContent>
+        <AppointmentsTable appointments={appointments} />
       </PageContent>
     </PageContainer>
   );
