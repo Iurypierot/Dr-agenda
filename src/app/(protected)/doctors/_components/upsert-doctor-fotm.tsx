@@ -1,10 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAction } from "next-safe-action/hooks";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { NumericFormat } from "react-number-format";
 import { toast } from "sonner";
 import { z } from "zod";
+import { Upload } from "lucide-react";
+import { Dialog } from "@/components/ui/dialog";
 
 import { upsertDoctor } from "@/actions/upsert-doctor";
 import { Button } from "@/components/ui/button";
@@ -24,6 +26,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -36,6 +39,7 @@ import {
 import { doctorsTable } from "@/db/schema";
 
 import { medicalSpecialties } from "../_constants";
+import ImageCropperDialog from "./image-cropper-dialog";
 
 const formSchema = z
   .object({
@@ -56,6 +60,22 @@ const formSchema = z
     availableToTime: z.string().min(1, {
       message: "Hora de término é obrigatória.",
     }),
+    avatarImageUrl: z
+      .string()
+      .optional()
+      .refine(
+        (val) => {
+          if (!val || val === "") return true;
+          // Aceita URLs absolutas (http/https) ou URLs relativas (começam com /)
+          return (
+            z.string().url().safeParse(val).success ||
+            (val.startsWith("/") && val.length > 1)
+          );
+        },
+        {
+          message: "URL inválida.",
+        },
+      ),
   })
   .refine(
     (data) => {
@@ -79,6 +99,14 @@ const UpsertDoctorForm = ({
   onSuccess,
   isOpen,
 }: UpsertDoctorFormProps) => {
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(
+    doctor?.avatarImageUrl ?? null,
+  );
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [isCropperOpen, setIsCropperOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+
   const form = useForm<z.infer<typeof formSchema>>({
     shouldUnregister: true,
     resolver: zodResolver(formSchema),
@@ -92,11 +120,13 @@ const UpsertDoctorForm = ({
       availableToWeekDay: doctor?.availableToWeekDay?.toString() ?? "5",
       availableFromTime: doctor?.availableFromTime ?? "",
       availableToTime: doctor?.availableToTime ?? "",
+      avatarImageUrl: doctor?.avatarImageUrl ?? "",
     },
   });
 
   useEffect(() => {
     if (isOpen) {
+      const avatarUrl = doctor?.avatarImageUrl ?? "";
       form.reset({
         name: doctor?.name ?? "",
         specialty: doctor?.specialty ?? "",
@@ -107,9 +137,72 @@ const UpsertDoctorForm = ({
         availableToWeekDay: doctor?.availableToWeekDay?.toString() ?? "5",
         availableFromTime: doctor?.availableFromTime ?? "",
         availableToTime: doctor?.availableToTime ?? "",
+        avatarImageUrl: avatarUrl,
       });
+      setPreviewImage(avatarUrl);
     }
   }, [isOpen, form, doctor]);
+
+  const handleFileSelect = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Por favor, selecione uma imagem válida.");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("A imagem deve ter no máximo 5MB.");
+      return;
+    }
+
+    setSelectedImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImageToCrop(e.target?.result as string);
+      setIsCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCropSave = async (croppedBlob: Blob) => {
+    setIsCropperOpen(false);
+    setIsUploading(true);
+
+    try {
+      const formData = new FormData();
+      const fileName = selectedImageFile?.name || "avatar.jpg";
+      const croppedFile = new File([croppedBlob], fileName, {
+        type: "image/jpeg",
+      });
+      formData.append("file", croppedFile);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao fazer upload da imagem");
+      }
+
+      const data = await response.json();
+      form.setValue("avatarImageUrl", data.url);
+      setPreviewImage(data.url);
+      setImageToCrop(null);
+      setSelectedImageFile(null);
+      toast.success("Foto enviada com sucesso!");
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      toast.error("Erro ao fazer upload da imagem. Tente novamente.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleCropCancel = () => {
+    setIsCropperOpen(false);
+    setImageToCrop(null);
+    setSelectedImageFile(null);
+  };
 
   const upsertDoctorAction = useAction(upsertDoctor, {
     onSuccess: () => {
@@ -128,6 +221,7 @@ const UpsertDoctorForm = ({
       availableFromWeekDay: parseInt(values.availableFromWeekDay),
       availableToWeekDay: parseInt(values.availableToWeekDay),
       appointmentPriceInCents: values.appointmentPrice * 100,
+      avatarImageUrl: values.avatarImageUrl || undefined,
     });
   };
 
@@ -151,6 +245,51 @@ const UpsertDoctorForm = ({
                 <FormLabel>Nome</FormLabel>
                 <FormControl>
                   <Input {...field} placeholder="Digite o nome do médico" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="avatarImageUrl"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Foto do Médico</FormLabel>
+                <FormControl>
+                  <div className="space-y-4">
+                    {previewImage && (
+                      <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-border">
+                        <img
+                          src={previewImage}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Label
+                        htmlFor="avatar-upload"
+                        className="cursor-pointer flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-accent"
+                      >
+                        <Upload className="h-4 w-4" />
+                        {isUploading ? "Enviando..." : "Adicionar Foto"}
+                      </Label>
+                      <Input
+                        id="avatar-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={isUploading || isCropperOpen}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleFileSelect(file);
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -415,6 +554,17 @@ const UpsertDoctorForm = ({
           </DialogFooter>
         </form>
       </Form>
+
+      {imageToCrop && (
+        <Dialog open={isCropperOpen} onOpenChange={setIsCropperOpen}>
+          <ImageCropperDialog
+            imageSrc={imageToCrop}
+            onSave={handleCropSave}
+            onCancel={handleCropCancel}
+            isOpen={isCropperOpen}
+          />
+        </Dialog>
+      )}
     </DialogContent>
   );
 };

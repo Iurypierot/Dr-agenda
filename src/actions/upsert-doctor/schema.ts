@@ -20,6 +20,22 @@ export const upsertDoctorSchema = z
     availableToTime: z.string().min(1, {
       message: "Hora de término é obrigatória.",
     }),
+    avatarImageUrl: z
+      .string()
+      .optional()
+      .refine(
+        (val) => {
+          if (!val || val === "") return true;
+          // Aceita URLs absolutas (http/https) ou URLs relativas (começam com /)
+          return (
+            z.string().url().safeParse(val).success ||
+            (val.startsWith("/") && val.length > 1)
+          );
+        },
+        {
+          message: "URL inválida.",
+        },
+      ),
   })
   .refine(
     (data) => {

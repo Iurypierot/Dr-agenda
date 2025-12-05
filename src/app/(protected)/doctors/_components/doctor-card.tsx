@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +32,7 @@ import { doctorsTable } from "@/db/schema";
 import { formatCurrency } from "@/helprs/currency";
 
 import { getAvailability } from "../_helpers/availability";
+import { getSpecialtyIcon } from "../_helpers/specialty-icons";
 import UpsertDoctorForm from "./upsert-doctor-fotm";
 
 dayjs.extend(isBetween);
@@ -50,18 +51,27 @@ const DoctorCard = ({ doctor }: DoctorCardProps) => {
     .join("");
 
   const availability = getAvailability(doctor);
+  const SpecialtyIcon = getSpecialtyIcon(doctor.specialty);
 
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <Avatar className="h-10 w-10">
-            <AvatarFallback>{doctorInitials}</AvatarFallback>
+        <div className="flex items-center gap-3">
+          <Avatar className="h-16 w-16">
+            {doctor.avatarImageUrl && (
+              <AvatarImage src={doctor.avatarImageUrl} alt={doctor.name} />
+            )}
+            <AvatarFallback className="text-lg">{doctorInitials}</AvatarFallback>
           </Avatar>
 
-          <div>
-            <h3 className="text-sm font-medium">{doctor.name}</h3>
-            <p className="text-muted-foreground text-sm">{doctor.specialty}</p>
+          <div className="flex-1">
+            <h3 className="text-base font-semibold">{doctor.name}</h3>
+            <div className="flex items-center gap-2">
+              {SpecialtyIcon && (
+                <SpecialtyIcon className="h-4 w-4 text-muted-foreground" />
+              )}
+              <p className="text-muted-foreground text-sm">{doctor.specialty}</p>
+            </div>
           </div>
         </div>
       </CardHeader>

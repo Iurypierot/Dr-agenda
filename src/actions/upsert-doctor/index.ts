@@ -52,6 +52,7 @@ export const upsertDoctor = actionClient
         availableToWeekDay: parsedInput.availableToWeekDay,
         availableFromTime: availableFromTimeUTC.format("HH:mm:ss"),
         availableToTime: availableToTimeUTC.format("HH:mm:ss"),
+        avatarImageUrl: parsedInput.avatarImageUrl || null,
       })
       .onConflictDoUpdate({
         target: doctorsTable.id,
@@ -63,6 +64,7 @@ export const upsertDoctor = actionClient
           availableToWeekDay: parsedInput.availableToWeekDay,
           availableFromTime: availableFromTimeUTC.format("HH:mm:ss"),
           availableToTime: availableToTimeUTC.format("HH:mm:ss"),
+          avatarImageUrl: parsedInput.avatarImageUrl || null,
         },
       });
     revalidatePath("/doctors");
