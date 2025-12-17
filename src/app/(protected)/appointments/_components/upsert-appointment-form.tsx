@@ -46,7 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { doctorsTable, patientsTable } from "@/db/schema";
+import { appointmentsTable, doctorsTable, patientsTable } from "@/db/schema";
 import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
@@ -69,16 +69,20 @@ interface UpsertAppointmentFormProps {
   isOpen: boolean;
   patients: (typeof patientsTable.$inferSelect)[];
   doctors: (typeof doctorsTable.$inferSelect)[];
+  existingAppointments?: (typeof appointmentsTable.$inferSelect)[];
   onSuccess?: () => void;
 }
 
 const UpsertAppointmentForm = ({
   patients,
   doctors,
+  existingAppointments = [],
   onSuccess,
   isOpen,
 }: UpsertAppointmentFormProps) => {
-  const [selectedDoctorId, setSelectedDoctorId] = useState<string | undefined>();
+  const [selectedDoctorId, setSelectedDoctorId] = useState<
+    string | undefined
+  >();
 
   const form = useForm<z.infer<typeof formSchema>>({
     shouldUnregister: true,
@@ -98,71 +102,85 @@ const UpsertAppointmentForm = ({
 
   const selectedDate = form.watch("date");
 
-  // Gerar horários disponíveis baseado no médico selecionado e data selecionada
   const availableTimes = (() => {
     if (!selectedDoctor || !selectedDate) return [];
-    
-    // Verificar se a data selecionada está dentro dos dias da semana que o médico trabalha
-    // dayjs: 0 = domingo, 1 = segunda, 2 = terça, ..., 6 = sábado
-    // banco: 0 = domingo, 1 = segunda, 2 = terça, ..., 6 = sábado
-    const selectedDateWeekDay = dayjs(selectedDate).day(); // 0-6 (domingo-sábado)
-    
-    // Verificar se o dia da semana está dentro do range do médico
+
+    const selectedDateWeekDay = dayjs(selectedDate).day();
+
     const fromWeekDay = selectedDoctor.availableFromWeekDay;
     const toWeekDay = selectedDoctor.availableToWeekDay;
-    
-    // Se o range cruza o domingo (ex: sexta a segunda)
+
     const isWeekendRange = fromWeekDay > toWeekDay;
-    
+
     let isDateValid = false;
     if (isWeekendRange) {
-      // Range que cruza o domingo (ex: 5 (sexta) a 1 (segunda))
-      isDateValid = selectedDateWeekDay >= fromWeekDay || selectedDateWeekDay <= toWeekDay;
+      isDateValid =
+        selectedDateWeekDay >= fromWeekDay || selectedDateWeekDay <= toWeekDay;
     } else {
       // Range normal (ex: 1 (segunda) a 5 (sexta))
-      isDateValid = selectedDateWeekDay >= fromWeekDay && selectedDateWeekDay <= toWeekDay;
+      isDateValid =
+        selectedDateWeekDay >= fromWeekDay && selectedDateWeekDay <= toWeekDay;
     }
-    
+
     if (!isDateValid) return [];
-    
+
     // Gerar horários baseados no horário de trabalho do médico
     // Os horários estão salvos em UTC no banco, precisamos converter para local
     const fromTimeUTC = dayjs()
       .utc()
       .set("hour", Number(selectedDoctor.availableFromTime.split(":")[0]))
       .set("minute", Number(selectedDoctor.availableFromTime.split(":")[1]))
-      .set("second", Number(selectedDoctor.availableFromTime.split(":")[2] || 0))
+      .set(
+        "second",
+        Number(selectedDoctor.availableFromTime.split(":")[2] || 0),
+      )
       .local();
-    
+
     const toTimeUTC = dayjs()
       .utc()
       .set("hour", Number(selectedDoctor.availableToTime.split(":")[0]))
       .set("minute", Number(selectedDoctor.availableToTime.split(":")[1]))
       .set("second", Number(selectedDoctor.availableToTime.split(":")[2] || 0))
       .local();
-    
+
     const fromHour = fromTimeUTC.hour();
     const fromMinute = fromTimeUTC.minute();
     const toHour = toTimeUTC.hour();
     const toMinute = toTimeUTC.minute();
-    
+
     const times: string[] = [];
     let currentHour = fromHour;
     let currentMinute = fromMinute;
-    
+
     while (
       currentHour < toHour ||
       (currentHour === toHour && currentMinute <= toMinute)
     ) {
       const timeString = `${String(currentHour).padStart(2, "0")}:${String(currentMinute).padStart(2, "0")}`;
       times.push(timeString);
-      
+
       // Incrementar em 1 hora
       currentHour += 1;
       if (currentHour >= 24) break;
     }
-    
-    return times;
+
+    // Filtrar horários que já estão ocupados pelo médico na data selecionada
+    const occupiedTimes = existingAppointments
+      .filter((apt) => {
+        const aptDate = dayjs(apt.date);
+        // Verificar se o agendamento é do mesmo médico e está no mesmo dia
+        return (
+          apt.doctorId === selectedDoctor.id &&
+          aptDate.isSame(selectedDate, "day")
+        );
+      })
+      .map((apt) => {
+        // Retornar o horário do agendamento ocupado
+        return dayjs(apt.date).format("HH:mm");
+      });
+
+    // Remover horários ocupados
+    return times.filter((time) => !occupiedTimes.includes(time));
   })();
 
   // Atualizar o valor da consulta quando o médico for selecionado
@@ -209,8 +227,10 @@ const UpsertAppointmentForm = ({
       toast.success("Agendamento criado com sucesso.");
       onSuccess?.();
     },
-    onError: () => {
-      toast.error("Erro ao criar agendamento.");
+    onError: ({ error }) => {
+      toast.error(
+        error.serverError || "Erro ao criar agendamento. Tente novamente.",
+      );
     },
   });
 
@@ -339,7 +359,9 @@ const UpsertAppointmentForm = ({
                       >
                         <CalendarIcon />
                         {field.value ? (
-                          dayjs(field.value).locale("pt-br").format("DD [de] MMMM [de] YYYY")
+                          dayjs(field.value)
+                            .locale("pt-br")
+                            .format("DD [de] MMMM [de] YYYY")
                         ) : (
                           <span>Selecione uma data</span>
                         )}
@@ -355,31 +377,37 @@ const UpsertAppointmentForm = ({
                       disabled={(date) => {
                         const today = dayjs().startOf("day");
                         const dateToCheck = dayjs(date);
+
                         
-                        // Desabilitar dias passados
                         if (dateToCheck.isBefore(today, "day")) {
                           return true;
                         }
+
                         
-                        // Se não houver médico selecionado, permitir todas as datas futuras
                         if (!selectedDoctor) {
                           return false;
                         }
+
                         
-                        // Verificar se o dia da semana está dentro dos dias que o médico trabalha
-                        const dateWeekDay = dateToCheck.day(); // 0-6 (domingo-sábado)
+                        const dateWeekDay = dateToCheck.day(); 
                         const fromWeekDay = selectedDoctor.availableFromWeekDay;
                         const toWeekDay = selectedDoctor.availableToWeekDay;
+
                         
-                        // Se o range cruza o domingo (ex: sexta a segunda)
                         const isWeekendRange = fromWeekDay > toWeekDay;
-                        
+
                         if (isWeekendRange) {
-                          // Range que cruza o domingo (ex: 5 (sexta) a 1 (segunda))
-                          return !(dateWeekDay >= fromWeekDay || dateWeekDay <= toWeekDay);
+                         
+                          return !(
+                            dateWeekDay >= fromWeekDay ||
+                            dateWeekDay <= toWeekDay
+                          );
                         } else {
                           // Range normal (ex: 1 (segunda) a 5 (sexta))
-                          return !(dateWeekDay >= fromWeekDay && dateWeekDay <= toWeekDay);
+                          return !(
+                            dateWeekDay >= fromWeekDay &&
+                            dateWeekDay <= toWeekDay
+                          );
                         }
                       }}
                     />
@@ -413,7 +441,7 @@ const UpsertAppointmentForm = ({
                         </SelectItem>
                       ))
                     ) : (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground text-center">
+                      <div className="text-muted-foreground px-2 py-1.5 text-center text-sm">
                         Nenhum horário disponível
                       </div>
                     )}
@@ -437,4 +465,3 @@ const UpsertAppointmentForm = ({
 };
 
 export default UpsertAppointmentForm;
-

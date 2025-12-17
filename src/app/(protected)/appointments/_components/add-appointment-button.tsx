@@ -7,16 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { doctorsTable, patientsTable } from "@/db/schema";
 
+import { appointmentsTable } from "@/db/schema";
+
 import UpsertAppointmentForm from "./upsert-appointment-form";
 
 interface AddAppointmentButtonProps {
   patients: (typeof patientsTable.$inferSelect)[];
   doctors: (typeof doctorsTable.$inferSelect)[];
+  appointments: (typeof appointmentsTable.$inferSelect)[];
 }
 
 const AddAppointmentButton = ({
   patients,
   doctors,
+  appointments,
 }: AddAppointmentButtonProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -34,6 +38,7 @@ const AddAppointmentButton = ({
         isOpen={isOpen}
         patients={patients}
         doctors={doctors}
+        existingAppointments={appointments}
       />
     </Dialog>
   );

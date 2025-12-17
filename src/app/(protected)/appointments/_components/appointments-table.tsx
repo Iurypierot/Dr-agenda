@@ -99,7 +99,7 @@ const AppointmentsTable = ({ appointments }: AppointmentsTableProps) => {
                     {appointment.patient.name}
                   </TableCell>
                   <TableCell className="text-center">
-                    Dr. {appointment.doctor.name}
+                    {appointment.doctor.name}
                   </TableCell>
                   <TableCell className="text-center">
                     {appointment.doctor.specialty}
