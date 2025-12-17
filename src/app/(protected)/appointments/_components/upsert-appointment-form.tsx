@@ -148,39 +148,36 @@ const UpsertAppointmentForm = ({
     const toHour = toTimeUTC.hour();
     const toMinute = toTimeUTC.minute();
 
-    const times: string[] = [];
+    const times: { time: string; isOccupied: boolean }[] = [];
     let currentHour = fromHour;
     let currentMinute = fromMinute;
+
+    // Obter horários ocupados pelo médico na data selecionada
+    const occupiedTimes = existingAppointments
+      .filter((apt) => {
+        const aptDate = dayjs(apt.date);
+        return (
+          apt.doctorId === selectedDoctor.id &&
+          aptDate.isSame(selectedDate, "day")
+        );
+      })
+      .map((apt) => dayjs(apt.date).format("HH:mm"));
 
     while (
       currentHour < toHour ||
       (currentHour === toHour && currentMinute <= toMinute)
     ) {
       const timeString = `${String(currentHour).padStart(2, "0")}:${String(currentMinute).padStart(2, "0")}`;
-      times.push(timeString);
+      times.push({
+        time: timeString,
+        isOccupied: occupiedTimes.includes(timeString),
+      });
 
-      // Incrementar em 1 hora
       currentHour += 1;
       if (currentHour >= 24) break;
     }
 
-    // Filtrar horários que já estão ocupados pelo médico na data selecionada
-    const occupiedTimes = existingAppointments
-      .filter((apt) => {
-        const aptDate = dayjs(apt.date);
-        // Verificar se o agendamento é do mesmo médico e está no mesmo dia
-        return (
-          apt.doctorId === selectedDoctor.id &&
-          aptDate.isSame(selectedDate, "day")
-        );
-      })
-      .map((apt) => {
-        // Retornar o horário do agendamento ocupado
-        return dayjs(apt.date).format("HH:mm");
-      });
-
-    // Remover horários ocupados
-    return times.filter((time) => !occupiedTimes.includes(time));
+    return times;
   })();
 
   // Atualizar o valor da consulta quando o médico for selecionado
@@ -435,9 +432,14 @@ const UpsertAppointmentForm = ({
                   </FormControl>
                   <SelectContent side="top">
                     {availableTimes.length > 0 ? (
-                      availableTimes.map((time) => (
-                        <SelectItem key={time} value={time}>
-                          {time}
+                      availableTimes.map(({ time, isOccupied }) => (
+                        <SelectItem
+                          key={time}
+                          value={time}
+                          disabled={isOccupied}
+                          className={isOccupied ? "text-muted-foreground" : ""}
+                        >
+                          {time} {isOccupied && "(Indisponível)"}
                         </SelectItem>
                       ))
                     ) : (
