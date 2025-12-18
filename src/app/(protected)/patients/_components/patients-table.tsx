@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -35,6 +36,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { patientsTable } from "@/db/schema";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 import UpsertPatientForm from "./upsert-patient-form";
 
@@ -58,6 +60,7 @@ const PatientsTable = ({ patients }: PatientsTableProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const selectedPatient = patients.find((p) => p.id === selectedPatientId);
 
@@ -71,6 +74,81 @@ const PatientsTable = ({ patients }: PatientsTableProps) => {
       toast.error("Erro ao excluir paciente.");
     },
   });
+
+  if (isMobile) {
+    return (
+      <>
+        <div className="space-y-4">
+          {patients.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                Nenhum paciente cadastrado ainda.
+              </CardContent>
+            </Card>
+          ) : (
+            patients.map((patient) => (
+              <Card key={patient.id}>
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <p className="font-semibold">{patient.name}</p>
+                        <p className="text-sm text-muted-foreground">{patient.email}</p>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>{patient.name}</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedPatientId(patient.id);
+                              setIsDialogOpen(true);
+                            }}
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => {
+                              setPatientToDelete(patient.id);
+                              setIsDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash className="mr-2 h-4 w-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Telefone:</span>
+                        <span className="font-medium">
+                          {formatPhoneNumber(patient.phoneNumber)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Sexo:</span>
+                        <span className="font-medium">
+                          {patient.sex === "male" ? "Masculino" : "Feminino"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

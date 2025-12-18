@@ -84,7 +84,7 @@ const SignUpForm = () => {
   }
 
   return (
-    <Card className="w-[400px] rounded-xl border shadow-lg">
+    <Card className="w-full max-w-[400px] rounded-xl border shadow-lg">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <CardHeader>

@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { appointmentsTable } from "@/db/schema";
+import { useIsMobile } from "@/hooks/use-mobile";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
 import { formatCurrency } from "@/helprs/currency";
@@ -52,6 +54,7 @@ const AppointmentsTable = ({ appointments }: AppointmentsTableProps) => {
     null,
   );
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const deleteAppointmentAction = useAction(deleteAppointment, {
     onSuccess: () => {
@@ -63,6 +66,87 @@ const AppointmentsTable = ({ appointments }: AppointmentsTableProps) => {
       toast.error("Erro ao excluir agendamento.");
     },
   });
+
+  if (isMobile) {
+    return (
+      <>
+        <div className="space-y-4">
+          {appointments.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                Nenhum agendamento cadastrado ainda.
+              </CardContent>
+            </Card>
+          ) : (
+            appointments.map((appointment) => (
+              <Card key={appointment.id}>
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <p className="font-semibold">{appointment.patient.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {appointment.doctor.name}
+                        </p>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>
+                            {appointment.patient.name}
+                          </DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => {
+                              setAppointmentToDelete(appointment.id);
+                              setIsDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash className="mr-2 h-4 w-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Especialidade:</span>
+                        <span className="font-medium">{appointment.doctor.specialty}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Data:</span>
+                        <span className="font-medium">
+                          {dayjs(appointment.date).format("DD/MM/YY, HH:mm")}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Valor:</span>
+                        <span className="font-medium">
+                          {formatCurrency(appointment.doctor.appointmentPriceInCents)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Status:</span>
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-green-500" />
+                          <span className="font-medium">Confirmado</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

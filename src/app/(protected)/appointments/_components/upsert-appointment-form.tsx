@@ -349,7 +349,7 @@ const UpsertAppointmentForm = ({
                         variant="outline"
                         data-empty={!field.value}
                         className={cn(
-                          "w-[280px] justify-start text-left font-normal",
+                          "w-full sm:w-[280px] justify-start text-left font-normal",
                           !field.value && "text-muted-foreground",
                         )}
                         disabled={!isPatientAndDoctorSelected}

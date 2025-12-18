@@ -27,9 +27,10 @@ const AddAppointmentButton = ({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button onClick={() => setIsOpen(true)}>
+        <Button onClick={() => setIsOpen(true)} className="w-full sm:w-auto">
           <Plus />
-          Novo agendamento
+          <span className="hidden sm:inline">Novo agendamento</span>
+          <span className="sm:hidden">Novo</span>
         </Button>
       </DialogTrigger>
 

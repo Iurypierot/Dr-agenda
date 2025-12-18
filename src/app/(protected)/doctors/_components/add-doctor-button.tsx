@@ -14,9 +14,10 @@ const AddDoctorButton = () => {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button onClick={() => setIsOpen(true)}>
+        <Button onClick={() => setIsOpen(true)} className="w-full sm:w-auto">
           <Plus />
-          Adicionar Médico
+          <span className="hidden sm:inline">Adicionar Médico</span>
+          <span className="sm:hidden">Adicionar</span>
         </Button>
       </DialogTrigger>
 

@@ -1,9 +1,11 @@
+import React from "react";
+
 export const PageContainer = ({ children }: { children: React.ReactNode }) => {
-  return <div className="space-y-6 p-6 w-full">{children}</div>;
+  return <div className="space-y-6 p-4 sm:p-6 w-full">{children}</div>;
 };
 
 export const PageHeader = ({ children }: { children: React.ReactNode}) => {
-    return <div className="flex items-center justify-between w-full">{children}</div>
+    return <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4">{children}</div>
 }
 
 export const PageHeaderContent = ({
@@ -23,7 +25,7 @@ export const PageDescription = ({ children }: { children: React.ReactNode }) => 
 };
 
 export const PageActions = ({ children }: { children: React.ReactNode }) => {
-    return <div className="flex items-center gap-2">{children}</div>;
+    return <div className="flex items-center gap-2 w-full sm:w-auto">{children}</div>;
 };
 
 export const PageContent = ({ children }: { children: React.ReactNode }) => {

@@ -118,7 +118,7 @@ const LoginForm = () => {
 
 
   return (
-    <Card className="w-[400px] rounded-xl border shadow-lg">
+    <Card className="w-full max-w-[400px] rounded-xl border shadow-lg">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <CardHeader>
