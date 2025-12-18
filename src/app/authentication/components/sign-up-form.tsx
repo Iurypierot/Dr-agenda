@@ -157,9 +157,13 @@ const SignUpForm = () => {
               disabled={form.formState.isSubmitting}
             >
               {form.formState.isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Criar conta
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Criando conta...
+                </>
+              ) : (
+                "Criar conta"
+              )}
             </Button>
           </CardFooter>
         </form>
